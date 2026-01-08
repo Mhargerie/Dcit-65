@@ -1,0 +1,49 @@
+Project: CapstoneProject
+Date: 2026-01-04
+
+Implemented security functions (status: implemented & tested locally)
+
+1) JWT Authentication
+   - Issue JWT on login (backend/routes/auth.js)
+   - verifyToken middleware with explicit handling for TokenExpiredError vs invalid token (backend/middleware/verifyToken.js)
+   - Protected backend endpoints use verifyToken: /api/lessons, /api/quizzes, /api/profile, /api/assessments, etc.
+
+2) Password handling
+   - Client-side SHA-256 hashing helper (src/utils/security.js) used by Login/Register
+   - Server-side bcrypt hashing/comparison on register/login (backend/routes/auth.js)
+
+3) HTTP & token handling (client)
+   - Axios instance attaches Bearer token from localStorage (src/utils/api.js)
+   - Axios response interceptor clears auth and redirects to /login on 401 (expired/invalid token)
+
+4) Route protection (frontend)
+   - PrivateRoute component enforces auth and redirects unauthenticated users to /login (src/PrivateRoute.jsx)
+
+5) Fallback sanitization (server)
+   - Removed failing external sanitizer loaders; implemented safe fallback sanitizers in server.js:
+     - fallbackMongoSanitize: strips leading $ and dots from input keys
+     - fallbackXssClean: escapes angle brackets in string inputs
+   - These run as default middleware to avoid server crashes from failing third-party libs
+
+6) HTTP hardening & DoS mitigation
+   - Helmet for security headers (server.js)
+   - express-rate-limit applied to /api to limit abusive requests (server.js)
+   - Body parser limit (10kb) to mitigate large payload attacks (server.js)
+   - CORS enabled (server.js)
+
+7) Environment & DB safety
+   - Seed scripts validate MONGO_URI before connecting and avoid hardcoding credentials (backend/scripts/*.mjs)
+
+8) Logging & UX on auth failures
+   - Clear 401 messages returned for expired vs invalid tokens
+   - Frontend auto-redirect to login on token expiry for consistent UX
+
+Notes / Known trade-offs
+- express-mongo-sanitize and xss-clean currently disabled/dropped in favor of fallbacks due to stability issues; plan to re-enable after debugging.
+- JWT stored in localStorage (convenient for SPA; susceptible to XSS). Recommend httpOnly cookie + refresh-token flow for production.
+- Client-side hashing is treated as password-equivalent; server retains bcrypt hashing.
+
+Next recommended hardening (not yet implemented)
+- Refresh-token flow with httpOnly cookies and CSRF protection
+- Re-enable/replace sanitizer libraries after resolving compatibility; add express-validator
+- Shorter JWT lifetime + token rotation and revocation support
